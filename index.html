@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GitScroll Live</title>
+<style>
+:root{--bg:#f5f4f0;--fg:#17171b;--mut:#5f5f69;--chip:rgba(0,0,0,.07);--bar:rgba(245,244,240,.85);--btn:rgba(255,255,255,.75);--accent:#e0245e;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101013;--fg:#f2f2f5;--mut:#a0a0ab;--chip:rgba(255,255,255,.1);--bar:rgba(16,16,19,.85);--btn:rgba(40,40,46,.8)}}
+:root[data-theme="dark"]{--bg:#101013;--fg:#f2f2f5;--mut:#a0a0ab;--chip:rgba(255,255,255,.1);--bar:rgba(16,16,19,.85);--btn:rgba(40,40,46,.8)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bar);backdrop-filter:blur(10px)}
+header{position:fixed;top:0;left:0;right:0;z-index:9;padding:calc(env(safe-area-inset-top,0px) + 10px) 12px 10px;display:flex;justify-content:center;gap:6px;background:var(--bar);backdrop-filter:blur(10px)}
+header button{border:0;background:transparent;color:var(--mut);font:600 15px system-ui,sans-serif;padding:7px 14px;border-radius:99px;cursor:pointer}
+header button.on{background:var(--fg);color:var(--bg)}
+#feed{height:100%;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#feed::-webkit-scrollbar{display:none}
+.card{position:relative;height:100%;scroll-snap-align:start;scroll-snap-stop:always;display:flex;align-items:flex-end;overflow:hidden;
+background:linear-gradient(165deg,color-mix(in srgb,var(--c) 34%,var(--bg)),var(--bg) 72%)}
+.card::after{content:attr(data-lang);position:absolute;right:-10px;top:18%;font:800 clamp(90px,24vw,220px)/1 system-ui,sans-serif;color:var(--c);opacity:.09;white-space:nowrap;pointer-events:none}
+.info{position:relative;z-index:1;padding:0 76px 28px 20px;max-width:640px;width:100%;box-sizing:border-box}
+.who{display:flex;align-items:center;gap:9px;color:var(--mut);font-weight:600;font-size:14px}
+.av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--c);color:#fff;font-weight:700}
+h2{margin:12px 0 8px;font-size:clamp(30px,8vw,46px);line-height:1.05;letter-spacing:-.02em;word-break:break-word}
+.desc{margin:0 0 14px;font-size:17px;line-height:1.45}
+.meta{display:flex;gap:16px;color:var(--mut);font-size:14px;font-weight:600}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--c);margin-right:6px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.tags b{font-weight:600;font-size:13px;background:var(--chip);padding:4px 10px;border-radius:99px}
+.why{margin-top:14px;font-size:13px;color:var(--mut);min-height:1.2em}
+.why em{font-style:normal;color:var(--accent);font-weight:700}
+.rail{position:absolute;right:12px;bottom:34px;z-index:2;display:flex;flex-direction:column;gap:14px}
+.b{width:48px;height:48px;border-radius:50%;border:0;background:var(--btn);color:var(--fg);display:grid;place-items:center;cursor:pointer;font-size:22px;text-decoration:none;box-shadow:0 2px 10px rgba(0,0,0,.15);backdrop-filter:blur(6px)}
+.b svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.like.on{color:var(--accent)}.like.on svg{fill:var(--accent)}
+.save.on svg{fill:var(--fg)}
+.pop{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%) scale(0);font-size:110px;color:var(--accent);opacity:0;pointer-events:none;z-index:3}
+.pop.go{animation:pop .7s ease-out}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.3);opacity:1}40%{transform:translate(-50%,-50%) scale(1.1);opacity:1}100%{transform:translate(-50%,-50%) scale(1.3);opacity:0}}
+.msg{height:100%;scroll-snap-align:start;display:grid;place-items:center;text-align:center;padding:30px;color:var(--mut);line-height:1.5}
+.msg h3{color:var(--fg);margin:0 0 8px;font-size:22px}
+.msg button{margin-top:14px;border:0;background:var(--fg);color:var(--bg);font:600 15px system-ui,sans-serif;padding:10px 18px;border-radius:99px;cursor:pointer}
+.hint{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);transform:translateX(-50%);z-index:8;font-size:12px;color:var(--mut);background:var(--bar);padding:5px 12px;border-radius:99px;transition:opacity .4s;pointer-events:none}
+.av{overflow:hidden;position:relative}.av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}header{flex-wrap:wrap}header button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;vertical-align:-3px}#sbar{flex:0 0 100%;display:none;justify-content:center}#sbar input{width:100%;max-width:560px;box-sizing:border-box;border:0;border-radius:99px;background:var(--chip);color:var(--fg);padding:10px 16px;font:16px system-ui,sans-serif;outline:none}#sbar input::placeholder{color:var(--mut)}</style>
+</head>
+<body>
+<header><button id="t-for" class="on">For You</button><button id="t-sav">Saved <span id="n">0</span></button><button id="t-q" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button><div id="sbar"><input id="q" type="search" placeholder="Search repos, e.g. rust cli or language:go" enterkeyhint="search" autocomplete="off"></div></header>
+<main id="feed"></main>
+<div class="hint" id="hint">Swipe up · double-tap to like · live from GitHub</div>
+<script>
+var R={},seen={},failed=false,loading=false,empties=0,rid=0,sq="",spage=1,sdone=false;
+var S={liked:[],saved:[],data:{},token:""};
+try{var p=JSON.parse(localStorage.getItem("gitscroll2")||"{}");S.liked=p.liked||[];S.saved=p.saved||[];S.data=p.data||{};S.token=p.token||""}catch(e){}
+function persist(){try{localStorage.setItem("gitscroll2",JSON.stringify(S))}catch(e){}}
+var feed=document.getElementById("feed"),tab="for",cur="";
+var HEART='<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C1 8.5 3 5 6.5 5c2 0 3.5 1 5.5 3 2-2 3.5-3 5.5-3C21 5 23 8.5 21.5 12 19 16.4 12 21 12 21z"/></svg>';
+var MARK='<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
+var LC={JavaScript:"#d9b800",TypeScript:"#3178c6",Python:"#3572a5",Rust:"#c9815a",Go:"#00a7c9",C:"#6b6b80","C++":"#f34b7d",Lua:"#3b3bb0",CSS:"#7a43b6",Java:"#b07219",Ruby:"#cc342d",Swift:"#f05138",Kotlin:"#a97bff",Shell:"#4eaa25",Zig:"#ec915c",HTML:"#e34c26"};
+function col(l){if(!l||l==="Other")return"#7a7a8c";if(LC[l])return LC[l];var h=0;for(var i=0;i<l.length;i++)h=(h*31+l.charCodeAt(i))%360;return"hsl("+h+",55%,48%)"}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function ago(d){return new Date(Date.now()-d*864e5).toISOString().slice(0,10)}
+function fmt(k){return k>=1000?(k/1000).toFixed(k>=10000?0:1).replace(".0","")+"k":String(k)}
+function norm(x){return{full:x.full_name,desc:x.description||"No description provided.",lang:x.language||"Other",k:x.stargazers_count,tp:(x.topics||[]).slice(0,4),av:x.owner&&x.owner.avatar_url,jit:Math.random()*.6}}
+function get(n){var r=R[n]||S.data[n];if(r&&r.jit===undefined)r.jit=Math.random()*.6;return r}
+function profile(){
+  var t={},l={};
+  function add(n,w){var r=get(n);if(!r)return;l[r.lang]=(l[r.lang]||0)+w;r.tp.forEach(function(x){t[x]=(t[x]||0)+w})}
+  S.liked.forEach(function(n){add(n,1)});
+  S.saved.forEach(function(n){add(n,2)});
+  return{t:t,l:l};
+}
+function score(r,P){
+  var s=Math.log10(r.k+1)*.4+r.jit;
+  r.tp.forEach(function(x){s+=(P.t[x]||0)});
+  return s+1.5*(P.l[r.lang]||0);
+}
+function bestTag(r,P){var b=null,w=0;r.tp.forEach(function(x){if((P.t[x]||0)>w){w=P.t[x];b=x}});return b}
+function refresh(P){
+  P=P||profile();
+  feed.querySelectorAll(".card").forEach(function(el){
+    var n=el.dataset.n,r=get(n),own=S.liked.indexOf(n)>-1||S.saved.indexOf(n)>-1;
+    el.querySelector(".like").classList.toggle("on",S.liked.indexOf(n)>-1);
+    el.querySelector(".save").classList.toggle("on",S.saved.indexOf(n)>-1);
+    var t=bestTag(r,P);
+    el.querySelector(".why").innerHTML=own||tab==="search"?"":(t?"Recommended because you like <em>#"+esc(t)+"</em>":"Popular on GitHub");
+  });
+  document.getElementById("n").textContent=S.saved.length;
+}
+function card(r){
+  var o=r.full.split("/")[0],n=r.full.split("/")[1];
+  var el=document.createElement("section");
+  el.className="card";el.dataset.n=r.full;el.dataset.lang=r.lang;
+  el.style.setProperty("--c",col(r.lang));
+  el.innerHTML='<div class="info"><div class="who"><span class="av">'+esc(o[0].toUpperCase())+(r.av?'<img src="'+esc(r.av)+'&s=60" alt="" onerror="this.remove()">':"")+'</span><span>'+esc(o)+'</span></div><h2>'+esc(n)+'</h2><p class="desc">'+esc(r.desc)+'</p><div class="meta"><span><i class="dot"></i>'+esc(r.lang)+'</span><span>★ '+fmt(r.k)+'</span></div><div class="tags">'+r.tp.map(function(t){return"<b>#"+esc(t)+"</b>"}).join("")+'</div><div class="why"></div></div><div class="rail"><button class="b like" aria-label="Like">'+HEART+'</button><button class="b save" aria-label="Save">'+MARK+'</button><a class="b" href="https://github.com/'+esc(r.full)+'" target="_blank" rel="noopener" aria-label="Open on GitHub">↗</a></div><div class="pop">♥</div>';
+  el.querySelector(".like").onclick=function(){toggle(r,"liked")};
+  el.querySelector(".save").onclick=function(){toggle(r,"saved")};
+  el.ondblclick=function(){if(S.liked.indexOf(r.full)<0)toggle(r,"liked");var p=el.querySelector(".pop");p.classList.remove("go");void p.offsetWidth;p.classList.add("go")};
+  return el;
+}
+function toggle(r,k){
+  var a=S[k],ix=a.indexOf(r.full);
+  if(ix>-1)a.splice(ix,1);else a.push(r.full);
+  if(S.liked.indexOf(r.full)>-1||S.saved.indexOf(r.full)>-1)S.data[r.full]=r;else delete S.data[r.full];
+  persist();
+  var P=profile();
+  if(tab==="for"){
+    var end=document.getElementById("end");
+    var nodes=[].slice.call(feed.querySelectorAll(".card"));
+    var c=nodes.findIndex(function(x){return x.dataset.n===cur});
+    nodes.slice(c+1).sort(function(a,b){return score(get(b.dataset.n),P)-score(get(a.dataset.n),P)}).forEach(function(x){feed.insertBefore(x,end)});
+  }
+  refresh(P);
+}
+function setEnd(html,fn){
+  var e=document.getElementById("end");if(!e)return;
+  e.innerHTML="<div>"+html+"</div>";
+  if(fn)fn(e);
+}
+function pickQuery(){
+  var P=profile();
+  var tt=Object.keys(P.t).sort(function(a,b){return P.t[b]-P.t[a]}).slice(0,3);
+  var ll=Object.keys(P.l).filter(function(x){return x!=="Other"}).sort(function(a,b){return P.l[b]-P.l[a]}).slice(0,2);
+  var rnd=function(n){return 1+Math.floor(Math.random()*n)};
+  if(tt.length&&Math.random()<.7){
+    var q="topic:"+tt[Math.floor(Math.random()*tt.length)]+" stars:>300";
+    if(ll.length&&Math.random()<.5)q+=' language:"'+ll[0]+'"';
+    return{q:q,page:rnd(3)};
+  }
+  var opts=[
+    {q:"created:>"+ago(14)+" stars:>100",page:rnd(2)},
+    {q:"stars:>3000 pushed:>"+ago(30),page:rnd(5)},
+    {q:"stars:>500 pushed:>"+ago(7),page:rnd(5)}
+  ];
+  return opts[Math.floor(Math.random()*opts.length)];
+}
+function fetchMore(){
+  if(loading||failed||tab==="sav"||(tab==="search"&&(sdone||!sq)))return;
+  loading=true;var my=rid;
+  var url;
+  if(tab==="search")url="https://api.github.com/search/repositories?q="+encodeURIComponent(sq)+"&per_page=20&page="+spage;
+  else{var pq=pickQuery();url="https://api.github.com/search/repositories?q="+encodeURIComponent(pq.q)+"&sort=stars&order=desc&per_page=20&page="+pq.page}
+  var h={Accept:"application/vnd.github+json"};
+  if(S.token)h.Authorization="Bearer "+S.token;
+  fetch(url,{headers:h}).then(function(res){
+    if(!res.ok){var e=new Error("http");e.status=res.status;throw e}
+    return res.json();
+  }).then(function(j){
+    if(my!==rid)return;
+    var P=profile(),end=document.getElementById("end");
+    var fresh=(j.items||[]).map(norm).filter(function(r){return !seen[r.full]});
+    fresh.forEach(function(r){seen[r.full]=1;R[r.full]=r});
+    if(tab==="for")fresh.sort(function(a,b){return score(b,P)-score(a,P)});
+    fresh.forEach(function(r){var c=card(r);feed.insertBefore(c,end);io.observe(c)});
+    refresh(P);
+    loading=false;
+    if(tab==="search"){spage++;if((j.items||[]).length<20||spage>50){sdone=true;setEnd(feed.querySelector(".card")?"<h3>That’s all the matches</h3>":"<h3>No repos found</h3>Try different keywords.");return}}
+    if(!fresh.length&&empties++<4)fetchMore();
+  }).catch(function(err){
+    if(my!==rid)return;
+    loading=false;failed=true;
+    var limited=err.status===403||err.status===429;
+    setEnd("<h3>"+(limited?"GitHub rate limit reached":"Couldn’t reach GitHub")+"</h3>"+(limited?"Unauthenticated search is limited to about 10 requests a minute. Wait a bit, or add a personal access token (no scopes needed).":"Check your connection and try again.")+"<br><button id='retry'>Retry</button> "+(limited?"<button id='tok'>Add token</button>":""),function(e){
+      e.querySelector("#retry").onclick=function(){failed=false;empties=0;setEnd("<h3>Loading fresh repos…</h3>");fetchMore()};
+      var t=e.querySelector("#tok");
+      if(t)t.onclick=function(){var v=prompt("Paste a GitHub personal access token:");if(v){S.token=v.trim();persist();failed=false;setEnd("<h3>Loading fresh repos…</h3>");fetchMore()}};
+    });
+  });
+}
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(!e.isIntersecting)return;
+    document.getElementById("hint").style.opacity=0;
+    if(e.target.id==="end"){fetchMore();return}
+    cur=e.target.dataset.n;
+    if(tab==="for"){
+      var cs=feed.querySelectorAll(".card"),ix=[].indexOf.call(cs,e.target);
+      if(ix>=cs.length-4)fetchMore();
+    }
+  });
+},{root:feed,threshold:.6});
+function show(t,q){
+  tab=t;feed.innerHTML="";cur="";failed=false;empties=0;rid++;loading=false;
+  document.getElementById("t-for").classList.toggle("on",t==="for");
+  document.getElementById("t-sav").classList.toggle("on",t==="sav");
+  document.getElementById("t-q").classList.toggle("on",t==="search");
+  document.getElementById("sbar").style.display=t==="search"?"flex":"none";
+  var m=document.createElement("section");m.className="msg";m.id="end";
+  if(t==="sav"){
+    S.saved.slice().reverse().forEach(function(n){var r=get(n);if(r){var c=card(r);feed.appendChild(c);io.observe(c)}});
+    m.innerHTML="<div>"+(S.saved.length?"<h3>That’s everything you saved</h3>":"<h3>Nothing saved yet</h3>Tap the bookmark on any repo and it lands here.")+"<br><button id='go'>Back to For You</button></div>";
+    feed.appendChild(m);
+    m.querySelector("#go").onclick=function(){show("for")};
+    refresh();
+  }else if(t==="for"){
+    m.innerHTML="<div><h3>Loading fresh repos…</h3></div>";
+    feed.appendChild(m);io.observe(m);
+    refresh();fetchMore();
+  }else{
+    sq=q||"";spage=1;sdone=false;seen={};
+    m.innerHTML=sq?"<div><h3>Searching…</h3></div>":"<div><h3>Search GitHub</h3>Try a topic, a language or a name, like <b>rust cli</b> or <b>language:go stars:&gt;1000</b>.</div>";
+    feed.appendChild(m);
+    if(sq){io.observe(m);fetchMore()}
+    refresh();
+  }
+}
+document.getElementById("t-for").onclick=function(){show("for")};
+document.getElementById("t-sav").onclick=function(){show("sav")};
+document.getElementById("t-q").onclick=function(){if(tab!=="search")show("search","");document.getElementById("q").focus()};
+document.getElementById("q").onkeydown=function(e){if(e.key==="Enter"){var v=this.value.trim();if(v){this.blur();show("search",v)}}};
+show("for");
+</script>
+</body>
+</html>
