@@ -84,17 +84,45 @@ h2{margin:12px 0 8px;font-size:clamp(30px,8vw,46px);line-height:1.05;letter-spac
 #terr{color:var(--accent);font-size:13px;min-height:1.2em;margin-top:8px}
 #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);transform:translateX(-50%) translateY(20px);opacity:0;z-index:30;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:99px;font:600 14px system-ui,sans-serif;transition:.25s;pointer-events:none;max-width:90%;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%)}
+.tp{padding:6px 18px 8px}
+.tp h4{margin:18px 0 8px;font-size:14px}
+.tp p{margin:0 0 8px;color:var(--mut);font-size:13px;line-height:1.45}
+.tp .hn{margin-top:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:2px;background:var(--chip);border-radius:99px;padding:5px 5px 5px 12px;font-size:14px;font-weight:600}
+.chip.in{background:color-mix(in srgb,var(--accent) 18%,var(--bg));color:var(--accent)}
+.chip.out{opacity:.8}
+.chip button{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:2px 8px;border-radius:99px;text-decoration:none}
+.chip.sg button:first-of-type{background:var(--accent);color:#fff;font-size:13px}
+.none{color:var(--mut);font-size:13px}
+.add{display:flex;gap:8px;margin-top:10px}
+.add input{flex:1;min-width:0;border:0;border-radius:99px;background:var(--chip);color:var(--fg);padding:10px 14px;font:16px system-ui,sans-serif;outline:none}
+.add button{border:0;border-radius:99px;background:var(--fg);color:var(--bg);padding:0 18px;font:600 14px system-ui,sans-serif;cursor:pointer}
+.bdg{background:var(--accent);color:#fff;border-radius:99px;font-size:11px;padding:1px 6px;margin-left:6px}
+#sug{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 116px);transform:translate(-50%,-10px);opacity:0;pointer-events:none;z-index:12;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;background:var(--bar);backdrop-filter:blur(12px);border:1px solid var(--chip);border-radius:16px;padding:10px 12px;max-width:92%;width:max-content;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.18);transition:.25s}
+#sug.on{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+#sug em{font-style:normal;color:var(--accent);font-weight:700}
+#sug button{border:0;border-radius:99px;padding:7px 12px;font:600 13px system-ui,sans-serif;cursor:pointer;background:var(--chip);color:var(--fg)}
+#sug button[data-a="y"]{background:var(--fg);color:var(--bg)}
+.tags b{cursor:pointer}.tags b.in{background:var(--accent);color:#fff}.tags b.out{text-decoration:line-through;opacity:.6}
+.pbtn.row{display:flex;gap:8px;margin-top:-8px}
+.pbtn.row button{flex:1}
+.sst{padding:0 18px 12px;font-size:12px;color:var(--mut);text-align:center}
 </style>
 </head>
 <body>
 <header><button id="t-for" class="on">For You</button><button id="t-sav">Saved <span id="n">0</span></button><button id="t-q" aria-label="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></button><div id="sbar"><input id="q" type="search" placeholder="Search repos, e.g. rust cli or language:go" enterkeyhint="search" autocomplete="off"></div></header>
-<main id="feed"></main><div id="prof"></div><button id="back">‹ Back</button><div id="sheet"></div><div id="toast"></div>
+<main id="feed"></main><div id="prof"></div><button id="back">‹ Back</button><div id="sheet"></div><div id="sug"></div><div id="toast"></div>
 <div class="hint" id="hint">Swipe up · double-tap to like · live from GitHub</div>
 <script>
 var R={},seen={},failed=false,loading=false,empties=0,rid=0,sq="",spage=1,sdone=false;
-var S={liked:[],saved:[],data:{},token:"",user:null};
-try{var p=JSON.parse(localStorage.getItem("gitscroll2")||"{}");S.liked=p.liked||[];S.saved=p.saved||[];S.data=p.data||{};S.token=p.token||"";S.user=p.user||null}catch(e){}
-function persist(){try{localStorage.setItem("gitscroll2",JSON.stringify(S))}catch(e){}}
+var S={liked:[],saved:[],data:{},token:"",user:null,tagsIn:[],tagsOut:[],dismissed:[],asked:[],ts:{},sync:false,gist:"",last:0};
+try{var p=JSON.parse(localStorage.getItem("gitscroll2")||"{}");S.liked=p.liked||[];S.saved=p.saved||[];S.data=p.data||{};S.token=p.token||"";S.user=p.user||null;S.tagsIn=p.tagsIn||[];S.tagsOut=p.tagsOut||[];S.dismissed=p.dismissed||[];S.asked=p.asked||[];S.ts=p.ts||{};S.sync=!!p.sync;S.gist=p.gist||"";S.last=p.last||0}catch(e){}
+function persist(quiet){
+  reconcile();
+  try{localStorage.setItem("gitscroll2",JSON.stringify(S))}catch(e){}
+  if(!quiet&&S.sync&&S.token)schedPush();
+}
 var feed=document.getElementById("feed"),tab="for",cur="";
 var HEART='<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.6-9.5-9C1 8.5 3 5 6.5 5c2 0 3.5 1 5.5 3 2-2 3.5-3 5.5-3C21 5 23 8.5 21.5 12 19 16.4 12 21 12 21z"/></svg>';
 var MARK='<svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></svg>';
@@ -103,7 +131,7 @@ function col(l){if(!l||l==="Other")return"#7a7a8c";if(LC[l])return LC[l];var h=0
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function ago(d){return new Date(Date.now()-d*864e5).toISOString().slice(0,10)}
 function fmt(k){return k>=1000?(k/1000).toFixed(k>=10000?0:1).replace(".0","")+"k":String(k)}
-function norm(x){return{full:x.full_name,desc:x.description||"No description provided.",lang:x.language||"Other",k:x.stargazers_count,tp:(x.topics||[]).slice(0,4),av:x.owner&&x.owner.avatar_url,jit:Math.random()*.6}}
+function norm(x){return{full:x.full_name,desc:x.description||"No description provided.",lang:x.language||"Other",k:x.stargazers_count,tp:(x.topics||[]).slice(0,4),all:x.topics||[],av:x.owner&&x.owner.avatar_url,jit:Math.random()*.6}}
 function get(n){var r=R[n]||S.data[n];if(r&&r.jit===undefined)r.jit=Math.random()*.6;return r}
 function profile(){
   var t={},l={};
@@ -114,7 +142,7 @@ function profile(){
 }
 function score(r,P){
   var s=Math.log10(r.k+1)*.4+r.jit;
-  r.tp.forEach(function(x){s+=(P.t[x]||0)});
+  r.tp.forEach(function(x){s+=(P.t[x]||0);if(S.tagsIn.indexOf(x)>-1)s+=2});
   return s+1.5*(P.l[r.lang]||0);
 }
 function bestTag(r,P){var b=null,w=0;r.tp.forEach(function(x){if((P.t[x]||0)>w){w=P.t[x];b=x}});return b}
@@ -125,6 +153,7 @@ function refresh(P){
     el.querySelector(".like").classList.toggle("on",S.liked.indexOf(n)>-1);
     el.querySelector(".save").classList.toggle("on",S.saved.indexOf(n)>-1);
     el.querySelector(".star").classList.toggle("on",ST[n]===true);
+    el.querySelectorAll(".tags b").forEach(function(c){var t=c.dataset.t;c.className=S.tagsIn.indexOf(t)>-1?"in":S.tagsOut.indexOf(t)>-1?"out":""});
     var t=bestTag(r,P);
     el.querySelector(".why").innerHTML=own||tab==="search"?"":(t?"Recommended because you like <em>#"+esc(t)+"</em>":"Popular on GitHub");
   });
@@ -135,10 +164,11 @@ function card(r){
   var el=document.createElement("section");
   el.className="card";el.dataset.n=r.full;el.dataset.lang=r.lang;
   el.style.setProperty("--c",col(r.lang));
-  el.innerHTML='<div class="info"><div class="who"><span class="av">'+esc(o[0].toUpperCase())+(r.av?'<img src="'+esc(r.av)+'&s=60" alt="" onerror="this.remove()">':"")+'</span><span>'+esc(o)+'</span></div><h2>'+esc(n)+'</h2><p class="desc">'+esc(r.desc)+'</p><div class="meta"><span><i class="dot"></i>'+esc(r.lang)+'</span><span>★ '+fmt(r.k)+'</span></div><div class="tags">'+r.tp.map(function(t){return"<b>#"+esc(t)+"</b>"}).join("")+'</div><div class="why"></div></div><div class="rail"><button class="b like" aria-label="Like">'+HEART+'</button><button class="b save" aria-label="Save">'+MARK+'</button><button class="b star" aria-label="Star on GitHub">'+STAR+'</button><a class="b" href="https://github.com/'+esc(r.full)+'" target="_blank" rel="noopener" aria-label="Open on GitHub">↗</a></div><div class="pop">♥</div>';
+  el.innerHTML='<div class="info"><div class="who"><span class="av">'+esc(o[0].toUpperCase())+(r.av?'<img src="'+esc(r.av)+'&s=60" alt="" onerror="this.remove()">':"")+'</span><span>'+esc(o)+'</span></div><h2>'+esc(n)+'</h2><p class="desc">'+esc(r.desc)+'</p><div class="meta"><span><i class="dot"></i>'+esc(r.lang)+'</span><span>★ '+fmt(r.k)+'</span></div><div class="tags">'+r.tp.map(function(t){return'<b data-t="'+esc(t)+'">#'+esc(t)+"</b>"}).join("")+'</div><div class="why"></div></div><div class="rail"><button class="b like" aria-label="Like">'+HEART+'</button><button class="b save" aria-label="Save">'+MARK+'</button><button class="b star" aria-label="Star on GitHub">'+STAR+'</button><a class="b" href="https://github.com/'+esc(r.full)+'" target="_blank" rel="noopener" aria-label="Open on GitHub">↗</a></div><div class="pop">♥</div>';
   el.querySelector(".like").onclick=function(){toggle(r,"liked")};
   el.querySelector(".save").onclick=function(){toggle(r,"saved")};
   el.querySelector(".star").onclick=function(){toggleStar(r)};
+  el.querySelector(".tags").onclick=function(e){var t=e.target.dataset&&e.target.dataset.t;if(t)showBanner(t,"pick")};
   el.ondblclick=function(){if(S.liked.indexOf(r.full)<0)toggle(r,"liked");var p=el.querySelector(".pop");p.classList.remove("go");void p.offsetWidth;p.classList.add("go")};
   return el;
 }
@@ -155,6 +185,7 @@ function toggle(r,k){
     nodes.slice(c+1).sort(function(a,b){return score(get(b.dataset.n),P)-score(get(a.dataset.n),P)}).forEach(function(x){feed.insertBefore(x,end)});
   }
   refresh(P);
+  if(ix<0)maybeSuggest(r,P);
 }
 function setEnd(html,fn){
   var e=document.getElementById("end");if(!e)return;
@@ -166,8 +197,10 @@ function pickQuery(){
   var tt=Object.keys(P.t).sort(function(a,b){return P.t[b]-P.t[a]}).slice(0,3);
   var ll=Object.keys(P.l).filter(function(x){return x!=="Other"}).sort(function(a,b){return P.l[b]-P.l[a]}).slice(0,2);
   var rnd=function(n){return 1+Math.floor(Math.random()*n)};
-  if(tt.length&&Math.random()<.7){
-    var q="topic:"+tt[Math.floor(Math.random()*tt.length)]+" stars:>300";
+  var useIn=S.tagsIn.length&&Math.random()<.5;
+  if(useIn)tt=S.tagsIn;
+  if(tt.length&&(useIn||Math.random()<.7)){
+    var q="topic:"+tt[Math.floor(Math.random()*tt.length)]+" stars:>"+(useIn?20:300);
     if(ll.length&&Math.random()<.5)q+=' language:"'+ll[0]+'"';
     return{q:q,page:rnd(3)};
   }
@@ -192,14 +225,14 @@ function fetchMore(){
   }).then(function(j){
     if(my!==rid)return;
     var P=profile(),end=document.getElementById("end");
-    var fresh=(j.items||[]).map(norm).filter(function(r){return !seen[r.full]});
+    var fresh=(j.items||[]).map(norm).filter(function(r){return !seen[r.full]&&(tab==="search"||!blocked(r))});
     fresh.forEach(function(r){seen[r.full]=1;R[r.full]=r});
     if(tab==="for")fresh.sort(function(a,b){return score(b,P)-score(a,P)});
     fresh.forEach(function(r){var c=card(r);feed.insertBefore(c,end);io.observe(c)});
     refresh(P);
     loading=false;
     if(tab==="search"){spage++;if((j.items||[]).length<20||spage>50){sdone=true;setEnd(feed.querySelector(".card")?"<h3>That’s all the matches</h3>":"<h3>No repos found</h3>Try different keywords.");return}}
-    if(!fresh.length&&empties++<4)fetchMore();
+    if(fresh.length)empties=0;else if(empties++<6)fetchMore();else setEnd("<h3>Nothing new right now</h3>Your not-interested tags may be filtering a lot. Try again in a bit.");
   }).catch(function(err){
     if(my!==rid)return;
     loading=false;failed=true;
@@ -227,10 +260,12 @@ var io=new IntersectionObserver(function(es){
 var STAR='<svg viewBox="0 0 24 24"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"/></svg>';
 var ST={},sheetDone=null,tmr;
 function toast(m){var t=document.getElementById("toast");t.textContent=m;t.classList.add("on");clearTimeout(tmr);tmr=setTimeout(function(){t.classList.remove("on")},2600)}
-function gh(method,path,tok){
+function gh(method,path,tok,body){
   var h={Accept:"application/vnd.github+json"};
   if(tok||S.token)h.Authorization="Bearer "+(tok||S.token);
-  return fetch("https://api.github.com"+path,{method:method,headers:h});
+  var o={method:method,headers:h};
+  if(body){h["Content-Type"]="application/json";o.body=JSON.stringify(body)}
+  return fetch("https://api.github.com"+path,o);
 }
 function checkStar(n){
   if(!S.token||!n||ST[n]!==undefined)return;
@@ -254,14 +289,14 @@ function toggleStar(r){
   }).catch(function(){undo("Couldn’t reach GitHub")});
 }
 function signOut(expired){
-  S.token="";S.user=null;ST={};persist();refresh();
+  S.token="";S.user=null;S.gist="";ST={};persist();refresh();
   if(tab==="sav"&&prof.style.display==="block")renderProf();
   toast(expired?"Token rejected, you’ve been signed out":"Signed out");
 }
 function openSheet(msg,done){
   sheetDone=done||null;
   var sh=document.getElementById("sheet");
-  sh.innerHTML='<div class="sc"><h3>Sign in with GitHub</h3><p>'+esc(msg||"Sign in to star repos from here and get a higher search rate limit.")+'</p><p>GitHub doesn’t let a browser-only app run its normal login, so this uses a personal access token. It stays in this browser and is only sent to api.github.com. Starring needs the <b>public_repo</b> scope (classic token) or <b>Starring: read and write</b> (fine-grained token).</p><a class="lnk" href="https://github.com/settings/tokens/new?scopes=public_repo&amp;description=GitScroll" target="_blank" rel="noopener">Create a token on GitHub ↗</a><input id="tk" type="password" placeholder="Paste your token" autocomplete="off"><div id="terr"></div><div class="row"><button id="tc">Cancel</button><button id="ts" class="pri">Sign in</button></div></div>';
+  sh.innerHTML='<div class="sc"><h3>Sign in with GitHub</h3><p>'+esc(msg||"Sign in to star repos from here and get a higher search rate limit.")+'</p><p>GitHub doesn’t let a browser-only app run its normal login, so this uses a personal access token. It stays in this browser and is only sent to api.github.com. Starring needs the <b>public_repo</b> scope (classic token) or <b>Starring: read and write</b> (fine-grained token). Sync needs <b>gist</b> (classic) or <b>Gists: read and write</b> (fine-grained).</p><a class="lnk" href="https://github.com/settings/tokens/new?scopes=public_repo,gist&amp;description=GitScroll" target="_blank" rel="noopener">Create a token on GitHub ↗</a><input id="tk" type="password" placeholder="Paste your token" autocomplete="off"><div id="terr"></div><div class="row"><button id="tc">Cancel</button><button id="ts" class="pri">Sign in</button></div></div>';
   sh.classList.add("open");
   sh.onclick=function(e){if(e.target===sh)closeSheet()};
   document.getElementById("tc").onclick=closeSheet;
@@ -277,25 +312,217 @@ function doSignIn(){
     if(!res.ok)throw new Error("HTTP "+res.status);
     return res.json();
   }).then(function(j){
-    S.token=v;S.user={login:j.login,avatar:j.avatar_url};ST={};persist();closeSheet();
+    if(S.user&&S.user.login!==j.login)S.gist="";S.token=v;S.user={login:j.login,avatar:j.avatar_url};ST={};persist();closeSheet();
     toast("Signed in as @"+j.login);
     refresh();
     if(tab==="sav"&&prof.style.display==="block")renderProf();
     checkStar(cur);
+    if(S.sync)syncNow(true);
     if(sheetDone){var f=sheetDone;sheetDone=null;f()}
   }).catch(function(e){document.getElementById("terr").textContent="That token didn’t work ("+e.message+")."});
+}
+function normTag(s){return String(s||"").toLowerCase().replace(/^#+/,"").trim().replace(/[\s_]+/g,"-").replace(/[^a-z0-9-]/g,"").slice(0,50)}
+function blocked(r){return(r.all||r.tp).some(function(t){return S.tagsOut.indexOf(t)>-1})}
+function addTag(list,t){
+  t=normTag(t);if(!t)return false;
+  var a=list==="in"?S.tagsIn:S.tagsOut,b=list==="in"?S.tagsOut:S.tagsIn,i=b.indexOf(t);
+  if(i>-1)b.splice(i,1);
+  if(a.indexOf(t)<0)a.unshift(t);
+  persist();refresh();
+  if(list==="out")pruneBlocked();
+  return true;
+}
+function rmTag(list,t){var a=list==="in"?S.tagsIn:S.tagsOut,i=a.indexOf(t);if(i>-1)a.splice(i,1);persist();refresh()}
+function pruneBlocked(){
+  if(tab!=="for")return;
+  var nodes=[].slice.call(feed.querySelectorAll(".card")),c=nodes.findIndex(function(x){return x.dataset.n===cur});
+  nodes.slice(c+1).forEach(function(x){var r=get(x.dataset.n);if(r&&blocked(r)){io.unobserve(x);x.remove()}});
+}
+function untracked(t){return S.tagsIn.indexOf(t)<0&&S.tagsOut.indexOf(t)<0&&S.dismissed.indexOf(t)<0}
+function sugList(){
+  var P=profile();
+  return Object.keys(P.t).filter(function(t){return P.t[t]>=3&&untracked(t)}).sort(function(a,b){return P.t[b]-P.t[a]}).slice(0,6);
+}
+function maybeSuggest(r,P){
+  var c=r.tp.filter(function(t){return P.t[t]>=3&&untracked(t)&&S.asked.indexOf(t)<0}).sort(function(a,b){return P.t[b]-P.t[a]})[0];
+  if(!c)return;
+  S.asked.push(c);persist();showBanner(c,"sug");
+}
+var btm;
+function showBanner(t,mode){
+  var b=document.getElementById("sug");
+  b.innerHTML=mode==="sug"?'<span>You keep liking <em>#'+esc(t)+'</em>. Add it to your interests?</span><button data-a="y">Add</button><button data-a="n">No thanks</button>':'<span><em>#'+esc(t)+'</em></span><button data-a="y">Interested</button><button data-a="n">Not interested</button>';
+  b.dataset.t=t;b.dataset.m=mode;b.classList.add("on");
+  clearTimeout(btm);btm=setTimeout(function(){b.classList.remove("on")},9000);
+}
+document.getElementById("sug").onclick=function(e){
+  var a=e.target.dataset&&e.target.dataset.a;if(!a)return;
+  var t=this.dataset.t,m=this.dataset.m;this.classList.remove("on");
+  if(m==="sug"){
+    if(a==="y"){addTag("in",t);toast("Added #"+t+" to your interests")}
+    else{S.dismissed.push(t);persist()}
+  }else{
+    addTag(a==="y"?"in":"out",t);
+    toast(a==="y"?"You’ll see more of #"+t:"Hiding #"+t+" from For You");
+  }
+};
+function chips(list,k,cls){
+  return list.length?list.map(function(t){return'<span class="chip '+cls+'">#'+esc(t)+'<button data-a="rm-'+k+'" data-t="'+esc(t)+'" aria-label="Remove">×</button></span>'}).join(""):'<span class="none">Nothing yet</span>';
+}
+function tagsPanel(){
+  var sg=sugList(),h='<div class="tp">';
+  if(sg.length)h+='<h4>Suggested for you</h4><p>You’ve been liking and saving these a lot. Add them to your interests?</p><div class="chips">'+sg.map(function(t){return'<span class="chip sg">#'+esc(t)+'<button data-a="acc" data-t="'+esc(t)+'">+ Add</button><button data-a="dis" data-t="'+esc(t)+'" aria-label="Dismiss">×</button></span>'}).join("")+'</div>';
+  h+='<h4>Interested in</h4><div class="chips">'+chips(S.tagsIn,"in","in")+'</div><div class="add"><input data-k="in" placeholder="Add a hashtag, e.g. rust" autocapitalize="none" autocomplete="off"><button data-a="add-in">Add</button></div>';
+  h+='<h4>Not interested in</h4><div class="chips">'+chips(S.tagsOut,"out","out")+'</div><div class="add"><input data-k="out" placeholder="Hide a hashtag, e.g. crypto" autocapitalize="none" autocomplete="off"><button data-a="add-out">Add</button></div>';
+  return h+'<p class="hn">Interested tags show up more in For You. Not-interested tags are filtered out of For You, but not out of search. You can also tap any #tag on a card.</p></div>';
+}
+function tagAction(a,t){
+  psc=prof.scrollTop;
+  if(a==="rm-in")rmTag("in",t);
+  else if(a==="rm-out")rmTag("out",t);
+  else if(a==="acc")addTag("in",t);
+  else if(a==="dis"){S.dismissed.push(t);persist()}
+  else if(a==="add-in"||a==="add-out"){
+    var k=a.slice(4),i=prof.querySelector('input[data-k="'+k+'"]');
+    if(!i||!addTag(k,i.value))return;
+  }
+  renderProf();
+}
+var LISTS={l:"liked",s:"saved",i:"tagsIn",o:"tagsOut",d:"dismissed",a:"asked"};
+var FN="gitscroll-sync.json",syncing=false,syncAgain=false,spt,stMsg="";
+function reconcile(){
+  var now=Date.now(),n=0,cur={};
+  Object.keys(LISTS).forEach(function(k){S[LISTS[k]].forEach(function(x){cur[k+":"+x]=1})});
+  Object.keys(cur).forEach(function(key){var e=S.ts[key];if(!e||!e.v)S.ts[key]={v:1,t:now+(n++)}});
+  Object.keys(S.ts).forEach(function(key){if(S.ts[key].v&&!cur[key])S.ts[key]={v:0,t:now}});
+}
+function rebuild(){
+  Object.keys(S.ts).forEach(function(key){
+    if(key.slice(0,2)!=="i:")return;
+    var e=S.ts[key],ok="o:"+key.slice(2),o=S.ts[ok];
+    if(e.v&&o&&o.v){if(e.t>=o.t)S.ts[ok]={v:0,t:o.t};else S.ts[key]={v:0,t:e.t}}
+  });
+  Object.keys(LISTS).forEach(function(k){
+    var arr=Object.keys(S.ts).filter(function(key){return key.charAt(0)===k&&key.charAt(1)===":"&&S.ts[key].v}).sort(function(a,b){return S.ts[a].t-S.ts[b].t}).map(function(key){return key.slice(2)});
+    if(k==="i"||k==="o")arr.reverse();
+    S[LISTS[k]]=arr;
+  });
+}
+function mergeRemote(rts){
+  Object.keys(rts).forEach(function(k){var a=S.ts[k],b=rts[k];if(b&&typeof b.t==="number"&&(!a||b.t>a.t))S.ts[k]={v:b.v?1:0,t:b.t}});
+  rebuild();
+}
+function differs(a,b){
+  var k=Object.keys(a);
+  if(k.length!==Object.keys(b).length)return true;
+  return k.some(function(x){return !b[x]||b[x].t!==a[x].t||b[x].v!==a[x].v});
+}
+function cleanData(){Object.keys(S.data).forEach(function(n){if(S.liked.indexOf(n)<0&&S.saved.indexOf(n)<0)delete S.data[n]})}
+function httpErr(st){var e=new Error("HTTP "+st);e.status=st;return e}
+function readFile(g){
+  var f=g.files&&g.files[FN];
+  if(!f)return null;
+  try{return JSON.parse(f.content)}catch(e){throw new Error("corrupt")}
+}
+function getGist(id){
+  return gh("GET","/gists/"+id+"?_="+Date.now()).then(function(res){
+    if(res.status===404&&S.gist===id){S.gist="";return findGist(1)}
+    if(!res.ok)throw httpErr(res.status);
+    return res.json().then(readFile);
+  });
+}
+function findGist(page){
+  return gh("GET","/gists?per_page=100&page="+page+"&_="+Date.now()).then(function(res){
+    if(!res.ok)throw httpErr(res.status);
+    return res.json();
+  }).then(function(list){
+    var g=list.filter(function(x){return x.files&&x.files[FN]})[0];
+    if(g){S.gist=g.id;return getGist(g.id)}
+    if(list.length===100&&page<5)return findGist(page+1);
+    return null;
+  });
+}
+function pull(){return S.gist?getGist(S.gist):findGist(1)}
+function push(){
+  var body={files:{}};
+  body.files[FN]={content:JSON.stringify({v:1,ts:S.ts})};
+  if(S.gist)return gh("PATCH","/gists/"+S.gist,null,body).then(function(res){if(!res.ok)throw httpErr(res.status)});
+  body.description="GitScroll sync data (safe to ignore)";body.public=false;
+  return gh("POST","/gists",null,body).then(function(res){if(!res.ok)throw httpErr(res.status);return res.json()}).then(function(g){S.gist=g.id;persist(true)});
+}
+function hydrate(){
+  var miss=S.liked.concat(S.saved).filter(function(n,i,a){return a.indexOf(n)===i&&!get(n)});
+  if(!miss.length)return Promise.resolve();
+  var i=0;
+  function worker(){
+    if(i>=miss.length)return Promise.resolve();
+    var n=miss[i++];
+    return gh("GET","/repos/"+n).then(function(res){
+      if(res.status===404){S.data[n]={full:n,desc:"This repo is no longer available.",lang:"Other",k:0,tp:[],all:[],jit:0};return}
+      if(!res.ok)return;
+      return res.json().then(function(j){var r=norm(j);r.full=n;S.data[n]=r});
+    }).catch(function(){}).then(worker);
+  }
+  return Promise.all([worker(),worker(),worker(),worker()]);
+}
+function redraw(){refresh();if(tab==="sav"&&prof.style.display==="block"){psc=prof.scrollTop;renderProf()}}
+function setSt(m){stMsg=m;var e=document.getElementById("sst");if(e)e.textContent=m}
+function syncStatus(){
+  if(!S.token)return"Sign in to resume sync";
+  return stMsg||(S.last?"Synced at "+new Date(S.last).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"Not synced yet");
+}
+function syncRow(){
+  var h='<div class="pbtn row">'+(S.sync?'<button id="sync-now">Sync now</button><button id="sync-off">Turn off sync</button>':'<button id="sync-on">Turn on sync across devices</button>')+'</div>';
+  if(S.sync)h+='<div class="sst" id="sst">'+esc(syncStatus())+'</div>';
+  return h;
+}
+function schedPush(){clearTimeout(spt);spt=setTimeout(function(){syncNow()},2500)}
+function syncNow(manual){
+  if(!S.sync||!S.token)return;
+  if(syncing){syncAgain=true;return}
+  syncing=true;setSt("Syncing…");
+  var remote=null;
+  pull().then(function(r){
+    remote=r&&r.ts?r.ts:null;
+    reconcile();
+    if(remote)mergeRemote(remote);
+    var cutoff=Date.now()-90*864e5;
+    Object.keys(S.ts).forEach(function(k){if(!S.ts[k].v&&S.ts[k].t<cutoff)delete S.ts[k]});
+    cleanData();persist(true);redraw();
+    return(!remote||differs(S.ts,remote)?push():Promise.resolve()).then(hydrate);
+  }).then(function(){
+    S.last=Date.now();cleanData();persist(true);
+    stMsg="";setSt(syncStatus());redraw();
+    if(manual)toast("Synced");
+  }).catch(function(e){
+    if(e.status===401)signOut(true);
+    setSt(e.status===401?"Token rejected, sign in again.":(e.status===403||e.status===404)?"Sync needs a token with Gists access. Sign out, then sign in with a token that has the gist scope.":e.message==="corrupt"?"The sync file in your Gist couldn’t be read.":"Couldn’t sync right now. Will retry.");
+  }).then(function(){
+    syncing=false;
+    if(syncAgain){syncAgain=false;syncNow()}
+  });
+}
+function enableSync(){
+  if(!S.token){openSheet("Sync keeps your likes, saves and tags in a private Gist on your GitHub account, so it needs a token with Gists access.",function(){enableSync()});return}
+  S.sync=true;persist(true);toast("Sync on");
+  psc=prof.scrollTop;renderProf();syncNow(true);
+}
+function disableSync(){
+  S.sync=false;persist(true);toast("Sync off. Your data stays here and in your Gist.");
+  psc=prof.scrollTop;renderProf();
 }
 var prof=document.getElementById("prof"),pt="saved",psc=0,plist=[];
 function renderProf(){
   var P=profile(),langs={};
   S.saved.concat(S.liked).forEach(function(n){var r=get(n);if(r)langs[r.lang]=1});
-  var tags=Object.keys(P.t).sort(function(a,b){return P.t[b]-P.t[a]}).slice(0,6);
+  var tags=S.tagsIn.concat(Object.keys(P.t).sort(function(a,b){return P.t[b]-P.t[a]})).filter(function(t,i,a){return a.indexOf(t)===i&&S.tagsOut.indexOf(t)<0}).slice(0,6);
   plist=(pt==="saved"?S.saved:S.liked).slice().reverse().map(get).filter(Boolean);
   var h='<div class="pw"><div class="ph"><div class="pav"><span>'+(S.user?'<img src="'+esc(S.user.avatar)+'&s=160" alt="">':'&lt;/&gt;')+'</span></div><div class="pst"><div><b>'+S.saved.length+'</b>saved</div><div><b>'+S.liked.length+'</b>liked</div><div><b>'+Object.keys(langs).length+'</b>languages</div></div></div>';
   h+='<div class="pbio"><strong>'+(S.user?"@"+esc(S.user.login):"Your GitHub finds")+'</strong>'+(tags.length?tags.map(function(t){return"<span>#"+esc(t)+"</span>"}).join(""):"Like and save repos to build your profile.")+'</div>';
   h+='<div class="pbtn"><button id="auth">'+(S.user?"Sign out":"Sign in with GitHub")+'</button></div>';
-  h+='<div class="pt"><button data-k="saved" class="'+(pt==="saved"?"on":"")+'">'+MARK+'Saved</button><button data-k="liked" class="'+(pt==="liked"?"on":"")+'">'+HEART+'Liked</button></div>';
-  if(plist.length){
+  h+=syncRow();
+  h+='<div class="pt"><button data-k="saved" class="'+(pt==="saved"?"on":"")+'">'+MARK+'Saved</button><button data-k="liked" class="'+(pt==="liked"?"on":"")+'">'+HEART+'Liked</button><button data-k="tags" class="'+(pt==="tags"?"on":"")+'"><b style="font-weight:800;margin-right:5px">#</b>Interests'+(sugList().length?'<span class="bdg">'+sugList().length+'</span>':"")+'</button></div>';
+  if(pt==="tags"){h+=tagsPanel()}else if(plist.length){
     h+='<div class="grid">'+plist.map(function(r,i){
       var bd=pt==="saved"?(S.liked.indexOf(r.full)>-1?HEART:""):(S.saved.indexOf(r.full)>-1?MARK:"");
       return'<button class="tile" data-i="'+i+'" style="--c:'+col(r.lang)+'"><span class="tb">'+bd+'</span><b>'+esc(r.full.split("/")[1])+'</b><small>'+esc(r.full.split("/")[0])+' · ★ '+fmt(r.k)+'</small></button>';
@@ -308,11 +535,17 @@ function renderProf(){
 }
 prof.onclick=function(e){
   if(e.target.id==="auth"){if(S.user)signOut();else openSheet();return}
+  var sid=e.target.id;
+  if(sid==="sync-on"){enableSync();return}
+  if(sid==="sync-now"){syncNow(true);return}
+  if(sid==="sync-off"){disableSync();return}
+  var ac=e.target.closest("[data-a]");if(ac){tagAction(ac.dataset.a,ac.dataset.t);return}
   var t=e.target.closest(".tile");
   if(t){psc=prof.scrollTop;openView(+t.dataset.i);return}
   var b=e.target.closest(".pt button");
   if(b){pt=b.dataset.k;psc=0;renderProf()}
 };
+prof.onkeydown=function(e){if(e.key==="Enter"&&e.target.tagName==="INPUT"&&e.target.dataset.k)tagAction("add-"+e.target.dataset.k)};
 function openView(i){
   feed.innerHTML="";cur="";
   plist.forEach(function(r){var c=card(r);feed.appendChild(c);io.observe(c)});
@@ -347,6 +580,8 @@ document.getElementById("t-sav").onclick=function(){psc=0;show("sav")};
 document.getElementById("t-q").onclick=function(){if(tab!=="search")show("search","");document.getElementById("q").focus()};
 document.getElementById("q").onkeydown=function(e){if(e.key==="Enter"){var v=this.value.trim();if(v){this.blur();show("search",v)}}};
 show("for");
+if(S.sync&&S.token)syncNow();
+document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"&&S.sync&&S.token&&Date.now()-(S.last||0)>30000)syncNow()});
 </script>
 </body>
 </html>
