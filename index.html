@@ -154,8 +154,8 @@ h2{margin:12px 0 8px;font-size:clamp(30px,8vw,46px);line-height:1.05;letter-spac
 <div class="hint" id="hint">Swipe up · double-tap to like · live from GitHub</div>
 <script>
 var R={},seen={},failed=false,loading=false,empties=0,rid=0,sq="",spage=1,sdone=false;
-var S={liked:[],saved:[],data:{},token:"",user:null,tagsIn:[],tagsOut:[],dismissed:[],asked:[],ts:{},sync:false,gist:"",last:0,upd:{},seen:{}};
-try{var p=JSON.parse(localStorage.getItem("gitscroll2")||"{}");S.liked=p.liked||[];S.saved=p.saved||[];S.data=p.data||{};S.token=p.token||"";S.user=p.user||null;S.tagsIn=p.tagsIn||[];S.tagsOut=p.tagsOut||[];S.dismissed=p.dismissed||[];S.asked=p.asked||[];S.ts=p.ts||{};S.sync=!!p.sync;S.gist=p.gist||"";S.last=p.last||0;S.upd=p.upd||{};S.seen=p.seen||{}}catch(e){}
+var S={liked:[],saved:[],data:{},token:"",user:null,tagsIn:[],tagsOut:[],dismissed:[],asked:[],ts:{},sync:false,gist:"",last:0,upd:{},seen:{},stInfo:[]};
+try{var p=JSON.parse(localStorage.getItem("gitscroll2")||"{}");S.liked=p.liked||[];S.saved=p.saved||[];S.data=p.data||{};S.token=p.token||"";S.user=p.user||null;S.tagsIn=p.tagsIn||[];S.tagsOut=p.tagsOut||[];S.dismissed=p.dismissed||[];S.asked=p.asked||[];S.ts=p.ts||{};S.sync=!!p.sync;S.gist=p.gist||"";S.last=p.last||0;S.upd=p.upd||{};S.seen=p.seen||{};S.stInfo=p.stInfo||[]}catch(e){}
 function persist(quiet){
   reconcile();
   try{localStorage.setItem("gitscroll2",JSON.stringify(S))}catch(e){}
@@ -176,6 +176,16 @@ function profile(){
   function add(n,w){var r=get(n);if(!r)return;l[r.lang]=(l[r.lang]||0)+w;r.tp.forEach(function(x){t[x]=(t[x]||0)+w})}
   S.liked.forEach(function(n){add(n,1)});
   S.saved.forEach(function(n){add(n,2)});
+  if(S.token){
+    var ct={},cl={};
+    S.stInfo.forEach(function(e){
+      if(ST[e.n]===false)return;
+      cl[e.l]=(cl[e.l]||0)+1;
+      e.t.forEach(function(x){ct[x]=(ct[x]||0)+1});
+    });
+    Object.keys(ct).forEach(function(x){t[x]=(t[x]||0)+Math.min(ct[x]*.5,6)});
+    Object.keys(cl).forEach(function(x){l[x]=(l[x]||0)+Math.min(cl[x]*.5,6)});
+  }
   return{t:t,l:l};
 }
 function score(r,P){
@@ -322,8 +332,8 @@ function checkStar(n){
 function toggleStar(r){
   if(!S.token){openSheet("Sign in to star repos on GitHub.");return}
   var n=r.full,was=ST[n]===true;
-  ST[n]=!was;refresh();
-  var undo=function(m){ST[n]=was;refresh();toast(m)};
+  ST[n]=!was;starInfo(r,!was);refresh();rerank();
+  var undo=function(m){ST[n]=was;starInfo(r,was);refresh();rerank();toast(m)};
   gh(was?"DELETE":"PUT","/user/starred/"+n).then(function(res){
     if(res.status===401){signOut(true)}
     else if(res.ok)toast(was?"Removed your star":"Starred "+n.split("/")[1]+" on GitHub");
@@ -331,7 +341,7 @@ function toggleStar(r){
   }).catch(function(){undo("Couldn’t reach GitHub")});
 }
 function signOut(expired){
-  S.token="";S.user=null;S.gist="";ST={};STL=[];stPage=0;stDone=false;stErr="";resetStars();persist();refresh();
+  S.token="";S.user=null;S.gist="";ST={};STL=[];stPage=0;stDone=false;stErr="";S.stInfo=[];resetStars();persist();refresh();
   if(tab==="sav"&&prof.style.display==="block")renderProf();
   toast(expired?"Token rejected, you’ve been signed out":"Signed out");
 }
@@ -394,7 +404,7 @@ function maybeSuggest(r,P){
 var btm;
 function showBanner(t,mode){
   var b=document.getElementById("sug");
-  b.innerHTML=mode==="sug"?'<span>You keep liking <em>#'+esc(t)+'</em>. Add it to your interests?</span><button data-a="y">Add</button><button data-a="n">No thanks</button>':'<span><em>#'+esc(t)+'</em></span><button data-a="y">Interested</button><button data-a="n">Not interested</button>';
+  b.innerHTML=mode==="sug"?'<span>You keep coming back to <em>#'+esc(t)+'</em>. Add it to your interests?</span><button data-a="y">Add</button><button data-a="n">No thanks</button>':'<span><em>#'+esc(t)+'</em></span><button data-a="y">Interested</button><button data-a="n">Not interested</button>';
   b.dataset.t=t;b.dataset.m=mode;b.classList.add("on");
   clearTimeout(btm);btm=setTimeout(function(){b.classList.remove("on")},9000);
 }
@@ -414,7 +424,7 @@ function chips(list,k,cls){
 }
 function tagsPanel(){
   var sg=sugList(),h='<div class="tp">';
-  if(sg.length)h+='<h4>Suggested for you</h4><p>You’ve been liking and saving these a lot. Add them to your interests?</p><div class="chips">'+sg.map(function(t){return'<span class="chip sg">#'+esc(t)+'<button data-a="acc" data-t="'+esc(t)+'">+ Add</button><button data-a="dis" data-t="'+esc(t)+'" aria-label="Dismiss">×</button></span>'}).join("")+'</div>';
+  if(sg.length)h+='<h4>Suggested for you</h4><p>You’ve been liking, saving and starring these a lot. Add them to your interests?</p><div class="chips">'+sg.map(function(t){return'<span class="chip sg">#'+esc(t)+'<button data-a="acc" data-t="'+esc(t)+'">+ Add</button><button data-a="dis" data-t="'+esc(t)+'" aria-label="Dismiss">×</button></span>'}).join("")+'</div>';
   h+='<h4>Interested in</h4><div class="chips">'+chips(S.tagsIn,"in","in")+'</div><div class="add"><input data-k="in" placeholder="Add a hashtag, e.g. rust" autocapitalize="none" autocomplete="off"><button data-a="add-in">Add</button></div>';
   h+='<h4>Not interested in</h4><div class="chips">'+chips(S.tagsOut,"out","out")+'</div><div class="add"><input data-k="out" placeholder="Hide a hashtag, e.g. crypto" autocapitalize="none" autocomplete="off"><button data-a="add-out">Add</button></div>';
   return h+'<p class="hn">Interested tags show up more in For You. Not-interested tags are filtered out of For You, but not out of search. You can also tap any #tag on a card.</p></div>';
@@ -701,18 +711,18 @@ function seenIt(r){return S.liked.indexOf(r.full)>-1||S.saved.indexOf(r.full)>-1
 function loadStarSet(){
   if(!S.token)return Promise.resolve();
   if(starP)return starP;
-  var pg=0;
+  var pg=0,acc=[];
   function next(){
     pg++;
     return gh("GET","/user/starred?per_page=100&page="+pg+"&_="+Date.now()).then(function(res){
       if(!res.ok)throw httpErr(res.status);
       return res.json();
     }).then(function(list){
-      list.forEach(function(x){STSET[x.full_name]=1});
+      list.forEach(function(x){STSET[x.full_name]=1;if(acc.length<200)acc.push({n:x.full_name,l:x.language||"Other",t:(x.topics||[]).slice(0,4)})});
       if(list.length===100&&pg<10)return next();
     });
   }
-  starP=next().then(function(){starDone=true;pruneBlocked()}).catch(function(){starDone=true});
+  starP=next().then(function(){S.stInfo=acc;persist(true);starDone=true;pruneBlocked();rerank()}).catch(function(){starDone=true});
   return starP;
 }
 var SC={};
@@ -730,6 +740,17 @@ function searchGet(url){
   });
 }
 function starWait(){return(tab==="for"&&S.token&&!starDone)?Promise.race([loadStarSet(),new Promise(function(r){setTimeout(r,1200)})]):Promise.resolve()}
+function starInfo(r,on){
+  S.stInfo=S.stInfo.filter(function(e){return e.n!==r.full});
+  if(on){S.stInfo.unshift({n:r.full,l:r.lang,t:(r.tp||[]).slice(0,4)});S.stInfo=S.stInfo.slice(0,200)}
+  persist(true);
+}
+function rerank(){
+  if(tab!=="for")return;
+  var P=profile(),end=document.getElementById("end"),nodes=[].slice.call(feed.querySelectorAll(".card"));
+  var c=nodes.findIndex(function(x){return x.dataset.n===cur});
+  nodes.slice(c+1).sort(function(a,b){return score(get(b.dataset.n),P)-score(get(a.dataset.n),P)}).forEach(function(x){feed.insertBefore(x,end)});
+}
 var prof=document.getElementById("prof"),pt="saved",psc=0,plist=[];
 function renderProf(){
   var P=profile(),langs={};
